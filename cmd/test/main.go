@@ -9,19 +9,6 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-var data = `
-version: 1
-environments:
-  default:
-    adapter: slack-app-token
-    token: xoxb-4820273758467-5909894820756-bIHR923k63Ng49KSLIrQgBeZ
-    channel: '#general'
-  testchannel:
-    adapter: slack-app-token
-    token: xoxb-4820273758467-5909894820756-bIHR923k63Ng49KSLIrQgBeZ
-    channel: '#general'
-`
-
 type Environment struct {
 	Adapter string `yaml:"adapter"`
 	Token   string `yaml:"token"`
