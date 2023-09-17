@@ -1,0 +1,16 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./.containers/dev/go/Dockerfile
+    tty: true
+    volumes:
+      - .:/go/src/app
+      - gobin:/go/bin
+    working_dir: /go/src/app
+    command: sh -c air
+
+volumes:
+  gobin:
