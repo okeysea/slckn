@@ -4,6 +4,7 @@ go 1.21.1
 
 require (
 	github.com/cockroachdb/errors v1.11.1
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/slack-go/slack v0.12.3
 	gopkg.in/yaml.v3 v3.0.1
 )

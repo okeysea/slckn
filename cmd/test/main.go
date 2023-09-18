@@ -7,9 +7,16 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jessevdk/go-flags"
 	"github.com/slack-go/slack"
 	"gopkg.in/yaml.v3"
 )
+
+type Opts struct {
+	Env string `short:"e" long:"env" description:"Name of the destination environment to which you want to send the message"`
+	Vars map[string]string `short:"v" long:"vars" description:"Arbitrary variables can be specified (e.g. --vars=fromIP:xxx.xxx.xxx.xxx)"`
+	ConfigFile string `short:"f" long:"configfile" description:"You can specify the path to the configuration file. If this option is specified, an error will occur if the configuration file does not exist"`
+}
 
 type VarMap map[string]string
 
@@ -127,8 +134,26 @@ func sendSlackMessage(config *Config, msgctx *MsgCtx) {
 	fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
 }
 
+var opts Opts
+var parser = flags.NewParser(&opts, flags.Default)
+
+func init() {
+	if _, err := parser.Parse(); err != nil {
+		switch flagsErr := err.(type) {
+		case flags.ErrorType:
+			if flagsErr == flags.ErrHelp {
+				os.Exit(0)
+			}
+			os.Exit(1)
+		default:
+			os.Exit(1)
+		}
+	}
+}
+
 func main() {
 	conf, err := loadConfig()
+	fmt.Printf("%s", opts.Env)
 	if err != nil {
 		log.Fatalf("--- error: %v", err)
 		fmt.Println(err)
