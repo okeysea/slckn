@@ -4,10 +4,21 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	"gopkg.in/yaml.v3"
 	"github.com/cockroachdb/errors"
+	"github.com/slack-go/slack"
+	"gopkg.in/yaml.v3"
 )
+
+type VarMap map[string]string
+
+type MsgCtx struct {
+	SendAt time.Time
+	SendTo Environment
+	Msg string
+	Vars VarMap
+}
 
 type Environment struct {
 	Adapter string `yaml:"adapter"`
@@ -16,13 +27,13 @@ type Environment struct {
 }
 
 type Config struct {
-	Version      string `yaml:"version"`
+	Version      string                 `yaml:"version"`
 	Environments map[string]Environment `yaml:"environments"`
 }
 
 func fileExists(filename string) bool {
-    _, err := os.Stat(filename)
-    return err == nil
+	_, err := os.Stat(filename)
+	return err == nil
 }
 
 func loadFile(filepath string) ([]byte, error) {
@@ -49,13 +60,13 @@ func loadConfig() (*Config, error) {
 	if path == "" {
 		if fileExists("./.slcknconf") {
 			path = "./.slcknconf"
-		}else if fileExists("~/.slcknconf") {
+		} else if fileExists("~/.slcknconf") {
 			path = "~/.slcknconf"
 		}
 	}
 
 	if !fileExists(path) {
-		return nil, errors.New("Config file not found") 
+		return nil, errors.New("Config file not found")
 	}
 
 	bytes, err := loadFile(path)
@@ -71,6 +82,51 @@ func loadConfig() (*Config, error) {
 	return conf, nil
 }
 
+func buildSlackContents(msgctx *MsgCtx) slack.Message {
+	n := msgctx.SendAt
+
+	headerText := slack.NewTextBlockObject("plain_text",
+		":eye-in-speech-bubble: Slckn Notify :eye-in-speech-bubble:", false, false)
+	headerBlock := slack.NewHeaderBlock(
+		headerText,
+		slack.HeaderBlockOptionBlockID("notify-header"),
+	)
+
+	contextText := slack.NewTextBlockObject("mrkdwn",
+		fmt.Sprintf(":calendar: %s | *from* %s", n.Format("2006-01-02 15:04:05"), msgctx.Vars["name"]),
+		false, false)
+	contextBlock := slack.NewContextBlock("notify-context", contextText)
+
+	dividerBlock := slack.NewDividerBlock()
+
+	mainContentText := slack.NewTextBlockObject("mrkdwn",
+		fmt.Sprintf("```%s```", msgctx.Msg), false, false)
+	mainContentSectionBlock := slack.NewSectionBlock(mainContentText, nil, nil)
+
+	msg := slack.NewBlockMessage(
+		headerBlock,
+		contextBlock,
+		dividerBlock,
+		mainContentSectionBlock,
+	)
+
+	return msg
+}
+
+func sendSlackMessage(config *Config, msgctx *MsgCtx) {
+	api := slack.New(msgctx.SendTo.Token)
+	channelID, timestamp, err := api.PostMessage(
+		msgctx.SendTo.Channel,
+		slack.MsgOptionBlocks(buildSlackContents(msgctx).Msg.Blocks.BlockSet...),
+		slack.MsgOptionAsUser(true),
+	)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+	fmt.Printf("Message successfully sent to channel %s at %s", channelID, timestamp)
+}
+
 func main() {
 	conf, err := loadConfig()
 	if err != nil {
@@ -79,6 +135,16 @@ func main() {
 		return
 	}
 	fmt.Printf("config: %+v", conf)
-
 	fmt.Printf("%s", conf.Environments["default"].Token)
+
+	msgctx := MsgCtx{
+		SendAt: time.Now(),
+		SendTo: conf.Environments["default"],
+		Msg: "yeah??\n\n\n\nYeah!!!!",
+		Vars: VarMap{
+			"name": "Barian",
+		},
+	}
+
+	sendSlackMessage(conf, &msgctx)
 }
